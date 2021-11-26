@@ -29,8 +29,6 @@ class Edge():
             self.x, self.y, self.a, self.b = a, b, x, y
         else:
             self.x, self.y, self.a, self.b = x, y, a, b
-        print(x, y, a, b)
-        print(self.x, self.y, self.a, self.b)
 
 class Point():
     def __init__(self, x, y):
@@ -62,67 +60,50 @@ class MathEx():
         a2 = Point((600-y+k*x) / k, 600)
         return a1,a2
 
-def CalcVactor(p1,p2):
-    return Point(p2.x-p1.x, p2.y-p1.y)
+    def CalcVactor(p1,p2):
+        return Point(p2.x-p1.x, p2.y-p1.y)
 
-def CalcNormal(p):
-    return Point(-p.y,p.x)
+    def CalcNormal(p):
+        return Point(-p.y,p.x)
 
-def crossProduct(p1,p2,p):
-    return (p2.x - p1.x) * (p.y - p1.y) - (p.x - p1.x) * (p2.y - p1.y)
+    def crossProduct(p1,p2,p):
+        return (p2.x - p1.x) * (p.y - p1.y) - (p.x - p1.x) * (p2.y - p1.y)
 
-def checkCross(p1, p2, p3, p4):
-    c1 = crossProduct(p1, p2, p3)
-    c2 = crossProduct(p1, p2, p4)
-    c3 = crossProduct(p3, p4, p1)
-    c4 = crossProduct(p3, p4, p2)
-    if(c1*c2<0 and c3*c4<0):
-        return True
-    return False
+    def GetMidPoint(p1,p2):
+        return Point((p1.x+p2.x)/2, (p1.y+p2.y)/2)
 
-def checkL(p1,p2,p):
-    tmp = (p1.y-p2.y) * p.x + (p2.x - p1.x) * p.y + p1.x * p2.y - p2.x * p1.y
-    if tmp < 0:
-        return True
-    else:
-        return False
+def SortPoint(p):
+    return p.x*2+p.y
 
-def PointDis(p1, p2):
-    return ((p1.x-p2.x)**2 + (p1.y-p2.y)**2)**0.5
-
-def GetMidPoint(p1,p2):
-    return Point((p1.x+p2.x)/2, (p1.y+p2.y)/2)
+def SortEdge(n):
+    return n.x*4+n.y*3+n.a*2+n.b
 
 def TwoPoint(p1,p2):
     global EdgeList
     p = [p1, p2]
-    n = CalcNormal(CalcVactor(p[0], p[1]))
-    x1 = n.x*600 + GetMidPoint(p[0],p[1]).x
-    y1 = n.y*600 + GetMidPoint(p[1],p[0]).y
-    n = CalcNormal(CalcVactor(p[1], p[0]))
-    x2 = n.x*600 + GetMidPoint(p[0],p[1]).x
-    y2 = n.y*600 + GetMidPoint(p[1],p[0]).y
+    n = MathEx.CalcNormal(MathEx.CalcVactor(p[0], p[1]))
+    x1 = n.x*600 + MathEx.GetMidPoint(p[0],p[1]).x
+    y1 = n.y*600 + MathEx.GetMidPoint(p[1],p[0]).y
+    n = MathEx.CalcNormal(MathEx.CalcVactor(p[1], p[0]))
+    x2 = n.x*600 + MathEx.GetMidPoint(p[0],p[1]).x
+    y2 = n.y*600 + MathEx.GetMidPoint(p[1],p[0]).y
     EdgeList.append(Edge(x1, y1, x2, y2))
-    # EdgeList.append(Edge(x2, y2, GetMidPoint(p[0],p[1]).x, GetMidPoint(p[0],p[1]).y))
-
-def SortPoint(p):
-    return p.x*2+p.y
 
 def ThreePoint(p1,p2,p3):
     global EdgeList
     p = [p1, p2, p3]
     center = MathEx.GetCircumcenter(p[0],p[1],p[2])
-    if (crossProduct(p[0], p[1], p[2])) == False:
+    if (MathEx.crossProduct(p[0], p[1], p[2])) == False:
         tmp = sorted([p[0], p[1], p[2]], key = SortPoint)
         TwoPoint(tmp[0], tmp[1])
         TwoPoint(tmp[1], tmp[2])
         return
-    elif (crossProduct(p[0], p[1], p[2])) > 0:
+    elif (MathEx.crossProduct(p[0], p[1], p[2])) > 0:
         p[1], p[2] = p[2], p[1]
     for i in range(-1,2,1):
-        n = CalcNormal(CalcVactor(p[i], p[i+1]))
-        x = n.x*600 + GetMidPoint(p[i],p[i+1]).x
-        y = n.y*600 + GetMidPoint(p[i],p[i+1]).y
+        n = MathEx.CalcNormal(MathEx.CalcVactor(p[i], p[i+1]))
+        x = n.x*600 + MathEx.GetMidPoint(p[i],p[i+1]).x
+        y = n.y*600 + MathEx.GetMidPoint(p[i],p[i+1]).y
         EdgeList.append(Edge(x, y, center.x, center.y))
 
 def cleanc():
@@ -148,16 +129,12 @@ def on_move_press(event):
 def on_button_release(event):
     pass
 
-def SortEdge(n):
-    return n.x*4+n.y*3+n.a*2+n.b
-
 def OutputFile():
     f = open('output.txt','w')
     for i in PointList:
         f.write('P '+str(int(i.x))+' '+str(int(i.y))+'\n')
     EdgeList.sort(key=SortEdge)
     for i in EdgeList:
-        print(i.x, i.y, i.a, i.b)
         f.write('E '+str(int(i.x))+' '+str(int(i.y))+' '+str(int(i.a))+' '+str(int(i.b))+'\n')
     f.close
 
@@ -183,7 +160,6 @@ def ReadInputFile():
     f = open(file_path,'r')
     line = f.readlines()
     for i in line:
-        print(i)
         if i[0] == '#' or i == '\n':
             continue
         elif i[0] == '0':
@@ -198,7 +174,6 @@ def ReadInputFile():
         if cnt == 0:
             ReadData.append(n)
     f.close()
-    print(ReadData)
 
 def RunReadFile():
     global NumData, EdgeList, PointList, ReadData
