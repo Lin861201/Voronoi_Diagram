@@ -29,6 +29,8 @@ class Edge():
             self.x, self.y, self.a, self.b = a, b, x, y
         else:
             self.x, self.y, self.a, self.b = x, y, a, b
+        print(x, y, a, b)
+        print(self.x, self.y, self.a, self.b)
 
 class Point():
     def __init__(self, x, y):
@@ -152,13 +154,15 @@ def SortEdge(n):
 def OutputFile():
     f = open('output.txt','w')
     for i in PointList:
-        f.write('P '+str(int(i.x))+' '+str(int(600 - i.y))+'\n')
+        f.write('P '+str(int(i.x))+' '+str(int(i.y))+'\n')
     EdgeList.sort(key=SortEdge)
     for i in EdgeList:
-        f.write('E '+str(int(i.x))+' '+str(int(600 - i.y))+' '+str(int(i.a))+' '+str(int(600 - i.b))+'\n')
+        print(i.x, i.y, i.a, i.b)
+        f.write('E '+str(int(i.x))+' '+str(int(i.y))+' '+str(int(i.a))+' '+str(int(i.b))+'\n')
     f.close
 
 def ReadGraphFile():
+    cleanc()
     file_path = filedialog.askopenfilename(initialdir='./')
     f = open(file_path,'r')
     for line in f.readlines():
@@ -179,6 +183,7 @@ def ReadInputFile():
     f = open(file_path,'r')
     line = f.readlines()
     for i in line:
+        print(i)
         if i[0] == '#' or i == '\n':
             continue
         elif i[0] == '0':
@@ -193,12 +198,15 @@ def ReadInputFile():
         if cnt == 0:
             ReadData.append(n)
     f.close()
-    
+    print(ReadData)
+
 def RunReadFile():
-    global NumData, EdgeList, PointList
+    global NumData, EdgeList, PointList, ReadData
     cleanc()
     if NumData >= len(ReadData):
         messagebox.showinfo("msg", "Done!")
+    elif len(ReadData[NumData]) == 1:
+        PointList = ReadData[NumData]
     elif len(ReadData[NumData]) == 2:
         PointList = ReadData[NumData]
         TwoPoint(PointList[0], PointList[1])
