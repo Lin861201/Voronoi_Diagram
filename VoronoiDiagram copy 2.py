@@ -7,6 +7,7 @@ import os
 from tkinter.constants import E, N
 from scipy.spatial import ConvexHull
 import matplotlib.pyplot as plt
+import threading
 
 win = tk.Tk()
 win.config(bg='white')
@@ -31,8 +32,7 @@ class Solution:
         n = len(trees)
         if n <= 2:
             return trees
-        trees.sort()
-        
+        # trees.sort()
         lower = list()
         res1 = list()
         for i in range(n):
@@ -51,23 +51,27 @@ class Solution:
             res2.append(i)
         return res1[1:]+res2[1:]
 
+class VD():
+    def __init__(self, PList, EList):
+        self.PList = PList
+        self.EList = EList
 
 class Edge():
-    def __init__(self, x, y, a, b, p1 = None, p2 = None, color = 'red', id = None):
+    def __init__(self, x, y, p1 = None, p2 = None, color = 'red', id = None):
         self.p1 = p1
         self.p2 = p2
         self.color = color
         self.id = id
-        if x < a:
-            self.x, self.y, self.a, self.b = x, y, a, b
-        elif a < x:
-            self.x, self.y, self.a, self.b = a, b, x, y
-        elif y < b:
-            self.x, self.y, self.a, self.b = x, y, a, b
-        elif b < y:
-            self.x, self.y, self.a, self.b = a, b, x, y
+        if x.x < y.x:
+            self.x, self.y= x, y
+        elif y.x < x.x:
+            self.x, self.y = y, x
+        elif x.y < y.y:
+            self.x, self.y = x, y
+        elif y.y < x.y:
+            self.x, self.y = y, x
         else:
-            self.x, self.y, self.a, self.b = x, y, a, b
+            self.x, self.y= x, y
 
 class Point():
     def __init__(self, x, y):
@@ -127,9 +131,6 @@ class MathEx():
 def SortPoint(p):
     return p.x*2+p.y
 
-def SortEdge(n):
-    return n.x*4*600+n.y*3*600+n.a*2*600+n.b*600
-
 def TwoPoint(p1,p2):
     p = [p1, p2]
     n = MathEx.CalcNormal(MathEx.CalcVactor(p[0], p[1]))
@@ -138,11 +139,14 @@ def TwoPoint(p1,p2):
     n = MathEx.CalcNormal(MathEx.CalcVactor(p[1], p[0]))
     x2 = n.x*600 + MathEx.GetMidPoint(p[0],p[1]).x
     y2 = n.y*600 + MathEx.GetMidPoint(p[1],p[0]).y
-    DrawLine(Edge(x1, y1, x2, y2, p1, p2))
+    a = canvas.create_line(p1.x, 600-p1.y, p2.x, 600-p2.y,fill = 'pink',width = 0)
+    DrawLine(Edge(Point(x1, y1), Point(x2, y2), p1, p2))
+    return [a]
 
 def ThreePoint(p1,p2,p3):
     global EdgeList
     p = [p1, p2, p3]
+    res = []
     center = MathEx.GetCircumcenter(p[0],p[1],p[2])
     if (MathEx.crossProduct(p[0], p[1], p[2])) == False:
         tmp = sorted([p[0], p[1], p[2]], key = SortPoint)
@@ -155,10 +159,15 @@ def ThreePoint(p1,p2,p3):
         n = MathEx.CalcNormal(MathEx.CalcVactor(p[i], p[i+1]))
         x = n.x*600 + MathEx.GetMidPoint(p[i],p[i+1]).x
         y = n.y*600 + MathEx.GetMidPoint(p[i],p[i+1]).y
-        DrawLine(Edge(x, y, center.x, center.y, p[i], p[i+1]))
+        a = canvas.create_line(p[i].x, 600-p[i].y, p[i+1].x, 600-p[i+1].y,fill = 'pink',width = 0)
+        res.append(a)
+        DrawLine(Edge(Point(x, y), center, p[i], p[i+1]))
+    return res
 
 def cleanc():
-    global PointList, EdgeList
+    global PointList, EdgeList, first, Stepcnt
+    first = True
+    Stepcnt = 0
     # if os.path.isfile('output.txt'):
     #     os.remove('output.txt')
     PointList = []
@@ -188,12 +197,12 @@ def OutputFile():
     f = open('output.txt','w', encoding="utf-8")
     for i in PointList:
         f.write('P '+str(int(i.x))+' '+str(int(i.y))+'\n')
-    EdgeList.sort(key=lambda EdgeList: EdgeList.b)
-    EdgeList.sort(key=lambda EdgeList: EdgeList.a)
-    EdgeList.sort(key=lambda EdgeList: EdgeList.y)
-    EdgeList.sort(key=lambda EdgeList: EdgeList.x)
+    EdgeList.sort(key=lambda EdgeList: EdgeList.y.y)
+    EdgeList.sort(key=lambda EdgeList: EdgeList.y.x)
+    EdgeList.sort(key=lambda EdgeList: EdgeList.x.y)
+    EdgeList.sort(key=lambda EdgeList: EdgeList.x.x)
     for i in EdgeList:
-        f.write('E '+str(int(i.x))+' '+str(int(i.y))+' '+str(int(i.a))+' '+str(int(i.b))+'\n')
+        f.write('E '+str(int(x.x))+' '+str(int(x.y))+' '+str(int(y.x))+' '+str(int(y.y))+'\n')
     f.close
 
 def ReadGraphFile():
@@ -206,7 +215,7 @@ def ReadGraphFile():
             DrawPoint(Point(int(s[1]), int(s[2])))
         if line[0] == 'E':
             s = line.split()
-            DrawLine(Edge(int(s[1]), int(s[2]), int(s[3]), int(s[4])))
+            DrawLine(Edge(Point(int(s[1]), int(s[2])), Point(int(s[3]), int(s[4]))))
 
 
 def ReadInputFile():
@@ -258,50 +267,95 @@ def CalcCross(p1, p2, p3, p4):
     if t1 > 0:
         return False
 
-    try:
+    # try:
+    if (x2-x1) == 0:
+        k1 = 999999999999
+    else:
         k1 = (y2-y1)*1.0/(x2-x1)
-        b1 = y1*1.0-x1*k1*1.0
-        if (x4-x3)==0:
-            k2 = None
-            b2 = 0
+    b1 = y1*1.0-x1*k1*1.0
+    if (x4-x3)==0:
+        k2 = None
+        b2 = 0
+    else:
+        if (x4-x3) == 0:
+                k2 = 999999999999
         else:
             k2=(y4-y3)*1.0/(x4-x3)
-            b2=y3*1.0-x3*k2*1.0
-        if k2 == None:
-            x = x3
+        b2=y3*1.0-x3*k2*1.0
+    if k2 == None:
+        x = x3
+    else:
+        if (k1-k2) == 0:
+            x = 999999999999
         else:
             x = (b2-b1)*1.0/(k1-k2)
-        y=k1*x*1.0+b1*1.0
-        return [x,y]
-    except:
-        return False
+    y=k1*x*1.0+b1*1.0
+    return [x,y]
+    # except:
+    #     return None
 
 def ShowGraph():
     global PointList, EdgeList
     for i in PointList:
         a = canvas.create_oval(i.x+5,(600-i.y)+5,i.x-5,(600-i.y)-5, fill = 'pink')
     for i in EdgeList:
-        a = canvas.create_line(i.x, 600-i.y, i.a, 600-i.b,fill = i.color,width = 1)
+        a = canvas.create_line(i.x.x, 600-i.x.y, i.y.x, 600-i.y.y,fill = i.color,width = 1)
         i.id = a
 
 def DrawLine(line):
     EdgeList.append(line)
-    a = canvas.create_line(line.x, 600-line.y, line.a, 600-line.b,fill = line.color,width = 1)
+    a = canvas.create_line(line.x.x, 600-line.x.y, line.y.x, 600-line.y.y,fill = line.color,width = 1)
     line.id = a
+    return a
 
 def DrawPoint(point):
     PointList.append(point)
     a = canvas.create_oval(point.x+5,(600-point.y)+5,point.x-5,(600-point.y)-5, fill = 'pink')
     point.id = a
 
+def CleanSingleEdge():
+    p = []
+    n = []
+    for i in EdgeList:
+        a,b,c,d = int(i.x.x), int(i.x.y), int(i.y.x), int(i.y.y)
+        if a >= 0 and a <= 600 and b >=0 and b <= 600:
+            if [a,b] in p:
+                n[p.index([a,b])] +=1
+            else:
+                p.append([a,b])
+                n.append(1)
+        if c >= 0 and c <= 600 and d >=0 and d <= 600:
+            if [c,d] in p:
+                n[p.index([c,d])] +=1
+            else:
+                p.append([c,d])
+                n.append(1)
+    print(p)
+    print(n)
+    cnt = 0
+    while cnt < len(n):
+        if n[cnt] != 1:
+            del p[cnt]
+            del n[cnt]
+        else:
+            cnt += 1
+    cnt = 0
+    while cnt < len(EdgeList):
+        if [int(EdgeList[cnt].x.x),int(EdgeList[cnt].x.y)] in p or [int(EdgeList[cnt].y.x),int(EdgeList[cnt].y.y)] in p:
+            canvas.delete(EdgeList[cnt].id)
+            del EdgeList[cnt]
+        else:
+            cnt += 1
+
 def RunHelper(PL):
-    TmpEdge = []
     if len(PL) <= 1:
         return
     elif len(PL) == 2:
-        TwoPoint(PL[0], PL[1])
+        a = TwoPoint(PL[0], PL[1])
+        return a
     elif len(PL) == 3:
-        ThreePoint(PL[0], PL[1], PL[2])
+        a = ThreePoint(PL[0], PL[1], PL[2])
+        return a 
     else:
         m = len(PL) // 2
         sp = sorted(PL, key=lambda PL: PL.x)
@@ -318,31 +372,21 @@ def RunHelper(PL):
         cutLine = []
         ConvexHullLine = []
         sp_np = [[i.x, i.y] for i in sp]
-        print(sp_np)
         hull = ConvexHull(sp_np) #hull.vertices為逆時針
-        # print(hull.vertices)
         mymethod = Solution.outerTrees(sp_np.copy()) #逆時針
-        print(sp_np)
-        print('my',mymethod)
-        print([sp_np[i] for i in mymethod])
-        print('other',hull.vertices)
-        print([[sp[i].x,sp[i].y]for i in hull.vertices])
-        # mymethod = hull.vertices
-        print('LP: {}, RP: {}'.format(LeftPoint, RightPoint))
         for vertices in range(-1,len(mymethod)-1,1): #非上下切線標示成黃色
-            print(sp[mymethod[vertices]].x, sp[mymethod[vertices]].y, sp[mymethod[vertices+1]].x, sp[mymethod[vertices+1]].y)
             if sp[mymethod[vertices]] in LeftPoint and sp[mymethod[vertices+1]] in LeftPoint or sp[mymethod[vertices]] in RightPoint and sp[mymethod[vertices+1]] in RightPoint:
-                a = canvas.create_line(sp[mymethod[vertices]].x, 600-sp[mymethod[vertices]].y, sp[mymethod[vertices+1]].x, 600-sp[mymethod[vertices+1]].y,fill = 'green',width = 0)
+                a = canvas.create_line(sp[mymethod[vertices]].x, 600-sp[mymethod[vertices]].y, sp[mymethod[vertices+1]].x, 600-sp[mymethod[vertices+1]].y,fill = 'pink',width = 0)
                 # print(sp[mymethod[vertices]].x, sp[mymethod[vertices]].y, sp[mymethod[vertices+1]].x, sp[mymethod[vertices+1]].y)
                 ConvexHullLine.append(a)
+                pass
             else:
-                a = canvas.create_line(sp[mymethod[vertices]].x, 600-sp[mymethod[vertices]].y, sp[mymethod[vertices+1]].x, 600-sp[mymethod[vertices+1]].y,fill = 'orange',width = 0)
+                a = canvas.create_line(sp[mymethod[vertices]].x, 600-sp[mymethod[vertices]].y, sp[mymethod[vertices+1]].x, 600-sp[mymethod[vertices+1]].y,fill = 'pink',width = 0)
                 # print(sp[mymethod[vertices]].x, sp[mymethod[vertices]].y, sp[mymethod[vertices+1]].x, sp[mymethod[vertices+1]].y)
                 ConvexHullLine.append(a)
                 cutLine.append([mymethod[vertices],mymethod[vertices+1]])
 
 ##############################################################################################################################################
-        # print(sp[cutLine[1][1]].y, sp[cutLine[1][0]].y, sp[cutLine[0][1]].y, sp[cutLine[0][0]].y)
         if max(sp[cutLine[1][1]].y, sp[cutLine[1][0]].y) < max(sp[cutLine[0][1]].y, sp[cutLine[0][0]].y):
             cutLine[1],cutLine[0] = cutLine[0], cutLine[1]
         e = cutLine[0]
@@ -358,19 +402,14 @@ def RunHelper(PL):
         y2 = n.y*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).y
         dict = []
         for i in EdgeList:
-            res = CalcCross(Point(x1,y1),Point(x2,y2),Point(i.x,i.y),Point(i.a,i.b))
+            res = CalcCross(Point(x1,y1),Point(x2,y2),i.x,i.y)
             if res:
-                # print(res)
                 dict.append([MathEx.Distance(Point(x2,y2), Point(res[0], res[1])), res, i])
                 # canvas.create_oval(res[0]+5,(600-res[1])+5,res[0]-5,(600-res[1])-5, fill = 'red')
                 # dict[MathEx.Distance(Point(x2,y2), Point(res[0], res[1]))] = res
         c = sorted(dict, key=lambda dict: dict[0])
-        DrawLine(Edge(c[0][1][0], c[0][1][1], x2, y2, sp[e[0]], sp[e[1]], color = 'blue'))
-        # TmpEdge.append(Edge(c[0][1][0], c[0][1][1], x2, y2, sp[e[0]], sp[e[1]], color = 'blue'))
-        # print(c[0][1][0], c[0][1][1], x2, y2)
+        DrawLine(Edge(Point(c[0][1][0], c[0][1][1]), Point(x2, y2), sp[e[0]], sp[e[1]], color = 'red'))
         CheckAngle = [Point(x2, y2),Point(c[0][1][0], c[0][1][1]),None]
-        # print(sp[e[0]].x, sp[e[0]].y, sp[e[1]].x, sp[e[1]].y)
-        # print(c[0][2].p1.x, c[0][2].p1.y, c[0][2].p2.x, c[0][2].p2.y)
         if sp[e[0]] == c[0][2].p1:
             sp[e[0]] = c[0][2].p2
         elif sp[e[0]] == c[0][2].p2:
@@ -390,15 +429,14 @@ def RunHelper(PL):
             y2 = n.y*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).y
             dict = []
             for i in EdgeList:
-                res = CalcCross(Point(x1,y1),Point(x2,y2),Point(i.x,i.y),Point(i.a,i.b))
+                res = CalcCross(Point(x1,y1),Point(x2,y2),i.x,i.y)
                 if res and res[1] <= c[0][1][1]:
                     if MathEx.Distance(Point(c[0][1][0],c[0][1][1]), Point(res[0], res[1])) < 0.0001:
                         continue
                     dict.append([MathEx.Distance(Point(c[0][1][0],c[0][1][1]), Point(res[0], res[1])), res, i])
-                    # canvas.create_oval(res[0]+5,(600-res[1])+5,res[0]-5,(600-res[1])-5, fill = 'green')
             Dline = c[0][2] #要刪除的線段
-            Lline = Point(Dline.x, Dline.y) #線段的右點
-            Rline = Point(Dline.a, Dline.b) #線段的左點
+            Lline = Point(Dline.x.x, Dline.x.y) #線段的右點
+            Rline = Point(Dline.y.x, Dline.y.y) #線段的左點
             Start = Point(c[0][1][0],c[0][1][1]) #交點
             for num, i in enumerate(EdgeList):
                 if id(i) == id(Dline):
@@ -408,20 +446,19 @@ def RunHelper(PL):
             c = sorted(dict, key=lambda dict: dict[0])
             if len(c) == 0:
                 if MathEx.CheckWise(CheckAngle[0], CheckAngle[1], End) == MathEx.CheckWise(CheckAngle[0], CheckAngle[1], Lline):
-                    DrawLine(Edge(Start.x, Start.y, Rline.x, Rline.y, Dline.p1, Dline.p2))
-                    DrawLine(Edge(Start.x, Start.y, End.x, End.y, sp[e[1]], sp[e[0]], color='blue'))
+                    DrawLine(Edge(Start, Rline, Dline.p1, Dline.p2))
+                    DrawLine(Edge(Start, End, sp[e[1]], sp[e[0]], color='red'))
                 elif MathEx.CheckWise(CheckAngle[0], CheckAngle[1], End) == MathEx.CheckWise(CheckAngle[0], CheckAngle[1], Rline):
-                    DrawLine(Edge(Start.x, Start.y, Lline.x, Lline.y, Dline.p1, Dline.p2))
-                    DrawLine(Edge(Start.x, Start.y, End.x, End.y, sp[e[1]], sp[e[0]], color='blue'))
+                    DrawLine(Edge(Start, Lline, Dline.p1, Dline.p2))
+                    DrawLine(Edge(Start, End, sp[e[1]], sp[e[0]], color='red'))
                 break
-            DrawLine(Edge(Start.x, Start.y, c[0][1][0], c[0][1][1], sp[e[0]], sp[e[1]], color = 'blue'))
-            # TmpEdge.append(Edge(Start.x, Start.y, c[0][1][0], c[0][1][1], sp[e[0]], sp[e[1]], color = 'blue'))
+            DrawLine(Edge(Start, Point(c[0][1][0], c[0][1][1]), sp[e[0]], sp[e[1]], color = 'red'))
             CheckAngle[2] = Point(c[0][1][0], c[0][1][1])
             if MathEx.CheckWise(CheckAngle[0], CheckAngle[1], CheckAngle[2]) == MathEx.CheckWise(CheckAngle[0], CheckAngle[1], Lline):
-                DrawLine(Edge(Start.x, Start.y, Rline.x, Rline.y, Dline.p1, Dline.p2))
+                DrawLine(Edge(Start, Rline, Dline.p1, Dline.p2))
                 pass
             elif MathEx.CheckWise(CheckAngle[0], CheckAngle[1], CheckAngle[2]) == MathEx.CheckWise(CheckAngle[0], CheckAngle[1], Rline):
-                DrawLine(Edge(Start.x, Start.y, Lline.x, Lline.y, Dline.p1, Dline.p2))
+                DrawLine(Edge(Start, Lline, Dline.p1, Dline.p2))
                 pass
             CheckAngle[0],CheckAngle[1] = CheckAngle[1],CheckAngle[2]
             if sp[e[0]] == c[0][2].p1:
@@ -432,9 +469,166 @@ def RunHelper(PL):
                 sp[e[1]] = c[0][2].p2
             elif sp[e[1]] == c[0][2].p2:
                 sp[e[1]] = c[0][2].p1
+        CleanSingleEdge()
         return ConvexHullLine
 
+Stepcnt = 0
+first = True
 
+def StepHelper(PL):
+    global Stepcnt
+    hyperplane = []
+    if len(PL) <= 1:
+        return
+    elif len(PL) == 2:
+        a = TwoPoint(PL[0], PL[1])
+        return a
+    elif len(PL) == 3:
+        a = ThreePoint(PL[0], PL[1], PL[2])
+        return a 
+    else:
+        m = len(PL) // 2
+        sp = sorted(PL, key=lambda PL: PL.x)
+        LeftPoint = sp[:m]
+        RightPoint = sp[m:]
+        Lline = StepHelper(LeftPoint)
+        Rline = StepHelper(RightPoint)
+        Stepcnt = 0
+        while Stepcnt < 1:
+            pass
+        if Lline:
+            for i in Lline:
+                canvas.delete(i)
+        if Rline:
+            for i in Rline:
+                canvas.delete(i)
+        cutLine = []
+        ConvexHullLine = []
+        sp_np = [[i.x, i.y] for i in sp]
+        hull = ConvexHull(sp_np) #hull.vertices為逆時針
+        mymethod = Solution.outerTrees(sp_np.copy()) #逆時針
+        for vertices in range(-1,len(mymethod)-1,1): #非上下切線標示成黃色
+            if sp[mymethod[vertices]] in LeftPoint and sp[mymethod[vertices+1]] in LeftPoint or sp[mymethod[vertices]] in RightPoint and sp[mymethod[vertices+1]] in RightPoint:
+                a = canvas.create_line(sp[mymethod[vertices]].x, 600-sp[mymethod[vertices]].y, sp[mymethod[vertices+1]].x, 600-sp[mymethod[vertices+1]].y,fill = 'pink',width = 0)
+                # print(sp[mymethod[vertices]].x, sp[mymethod[vertices]].y, sp[mymethod[vertices+1]].x, sp[mymethod[vertices+1]].y)
+                ConvexHullLine.append(a)
+                pass
+            else:
+                a = canvas.create_line(sp[mymethod[vertices]].x, 600-sp[mymethod[vertices]].y, sp[mymethod[vertices+1]].x, 600-sp[mymethod[vertices+1]].y,fill = 'pink',width = 0)
+                # print(sp[mymethod[vertices]].x, sp[mymethod[vertices]].y, sp[mymethod[vertices+1]].x, sp[mymethod[vertices+1]].y)
+                ConvexHullLine.append(a)
+                cutLine.append([mymethod[vertices],mymethod[vertices+1]])
+        while Stepcnt < 2:
+            pass
+##############################################################################################################################################
+        if max(sp[cutLine[1][1]].y, sp[cutLine[1][0]].y) < max(sp[cutLine[0][1]].y, sp[cutLine[0][0]].y):
+            cutLine[1],cutLine[0] = cutLine[0], cutLine[1]
+        e = cutLine[0]
+        n = MathEx.CalcNormal(MathEx.CalcVactor(sp[e[1]], sp[e[0]]))
+        x2 = n.x*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).x
+        y2 = n.y*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).y
+        End = Point(x2, y2)
+        e = cutLine[1]
+        n = MathEx.CalcNormal(MathEx.CalcVactor(sp[e[1]], sp[e[0]]))
+        x1 = -n.x*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).x
+        y1 = -n.y*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).y
+        x2 = n.x*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).x
+        y2 = n.y*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).y
+        dict = []
+        for i in EdgeList:
+            res = CalcCross(Point(x1,y1),Point(x2,y2),i.x,i.y)
+            if res:
+                dict.append([MathEx.Distance(Point(x2,y2), Point(res[0], res[1])), res, i])
+                # canvas.create_oval(res[0]+5,(600-res[1])+5,res[0]-5,(600-res[1])-5, fill = 'red')
+                # dict[MathEx.Distance(Point(x2,y2), Point(res[0], res[1]))] = res
+        c = sorted(dict, key=lambda dict: dict[0])
+        cntc = 0
+        for i in range(len(c)):
+            if c[i][2].p1 in sp and c[i][2].p2 in sp:
+                cntc = i
+                break
+        hpid = DrawLine(Edge(Point(c[cntc][1][0], c[cntc][1][1]), Point(x2, y2), sp[e[0]], sp[e[1]], color = 'blue'))
+        hyperplane.append(hpid)
+        CheckAngle = [Point(x2, y2),Point(c[cntc][1][0], c[cntc][1][1]),None]
+        if sp[e[0]] == c[cntc][2].p1:
+            sp[e[0]] = c[cntc][2].p2
+        elif sp[e[0]] == c[cntc][2].p2:
+            sp[e[0]] = c[cntc][2].p1
+        elif sp[e[1]] == c[cntc][2].p1:
+            sp[e[1]] = c[cntc][2].p2
+        elif sp[e[1]] == c[cntc][2].p2:
+            sp[e[1]] = c[cntc][2].p1
+
+# #################################################################################################################################################
+        while True:
+            n = MathEx.CalcNormal(MathEx.CalcVactor(sp[e[1]], sp[e[0]]))
+            x1 = -n.x*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).x
+            y1 = -n.y*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).y
+            x2 = n.x*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).x
+            y2 = n.y*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).y
+            dict = []
+            for i in EdgeList:
+                res = CalcCross(Point(x1,y1),Point(x2,y2),i.x,i.y)
+                if res and res[1] <= c[cntc][1][1]:
+                    if MathEx.Distance(Point(c[cntc][1][0],c[cntc][1][1]), Point(res[0], res[1])) < 0.0001:
+                        continue
+                    # canvas.create_oval(res[0]+5,(600-res[1])+5,res[0]-5,(600-res[1])-5, fill = 'red')
+                    dict.append([MathEx.Distance(Point(c[cntc][1][0],c[0][1][1]), Point(res[0], res[1])), res, i])
+            Dline = c[cntc][2] #要刪除的線段
+            Lline = Point(Dline.x.x, Dline.x.y) #線段的右點
+            Rline = Point(Dline.y.x, Dline.y.y) #線段的左點
+            Start = Point(c[cntc][1][0],c[cntc][1][1]) #交點
+            for num, i in enumerate(EdgeList):
+                if id(i) == id(Dline):
+                    del EdgeList[num]
+                    break 
+            canvas.delete(Dline.id)
+            c = sorted(dict, key=lambda dict: dict[0])
+            cntc = 0
+            for i in range(len(c)):
+                if c[i][2].p1 in sp and c[i][2].p2 in sp:
+                    cntc = i
+                    break
+            if len(c) == 0:
+                if MathEx.CheckWise(CheckAngle[0], CheckAngle[1], End) == MathEx.CheckWise(CheckAngle[0], CheckAngle[1], Lline):
+                    DrawLine(Edge(Start, Rline, Dline.p1, Dline.p2))
+                    hpid = DrawLine(Edge(Start, End, sp[e[1]], sp[e[0]], color='blue'))
+                elif MathEx.CheckWise(CheckAngle[0], CheckAngle[1], End) == MathEx.CheckWise(CheckAngle[0], CheckAngle[1], Rline):
+                    DrawLine(Edge(Start, Lline, Dline.p1, Dline.p2))
+                    hpid = DrawLine(Edge(Start, End, sp[e[1]], sp[e[0]], color='blue'))
+                hyperplane.append(hpid)
+                break
+            hpid = DrawLine(Edge(Start, Point(c[cntc][1][0], c[cntc][1][1]), sp[e[0]], sp[e[1]], color = 'blue'))
+            hyperplane.append(hpid)
+            CheckAngle[2] = Point(c[cntc][1][0], c[cntc][1][1])
+            if MathEx.CheckWise(CheckAngle[0], CheckAngle[1], CheckAngle[2]) == MathEx.CheckWise(CheckAngle[0], CheckAngle[1], Lline):
+                DrawLine(Edge(Start, Rline, Dline.p1, Dline.p2))
+            elif MathEx.CheckWise(CheckAngle[0], CheckAngle[1], CheckAngle[2]) == MathEx.CheckWise(CheckAngle[0], CheckAngle[1], Rline):
+                DrawLine(Edge(Start, Lline, Dline.p1, Dline.p2))
+            CheckAngle[0],CheckAngle[1] = CheckAngle[1],CheckAngle[2]
+            if sp[e[0]] == c[cntc][2].p1:
+                sp[e[0]] = c[cntc][2].p2
+            elif sp[e[0]] == c[cntc][2].p2:
+                sp[e[0]] = c[cntc][2].p1
+            elif sp[e[1]] == c[cntc][2].p1:
+                sp[e[1]] = c[cntc][2].p2
+            elif sp[e[1]] == c[cntc][2].p2:
+                sp[e[1]] = c[cntc][2].p1
+        CleanSingleEdge()
+        while Stepcnt < 3:
+            pass
+        for i in hyperplane:
+            canvas.itemconfig(i,fill='red')
+        return ConvexHullLine
+
+def Step():
+    global first, Stepcnt
+    if first:
+        t = threading.Thread(target = StepHelper, args=(PointList,))
+        t.start()
+        first = False
+    else:
+        Stepcnt+=1
 
 
 def Run():
@@ -444,27 +638,30 @@ def Run():
 
     
 
-btn_step = tk.Button(text='Run', width = 10, height = 1)
+btn_run = tk.Button(text='Run', width = 10, height = 1)
 btn_clean = tk.Button(text='Clean', width = 10, height = 1)
 btn_output = tk.Button(text='Output', width = 10, height = 1)
 btn_readgraph = tk.Button(text='ReadG', width = 10, height = 1)
 btn_readfile = tk.Button(text='ReadF', width = 10, height = 1)
 btn_readfilerun = tk.Button(text='ReadFRun', width = 10, height = 1)
+btn_step = tk.Button(text='step', width = 10, height = 1)
 pos_label = tk.Label(text='', width = 10, height = 1)
 
-btn_step.config(command = Run)
+btn_run.config(command = Run)
 btn_clean.config(command = cleanc)
 btn_output.config(command = OutputFile)
 btn_readgraph.config(command = ReadGraphFile)
 btn_readfile.config(command = ReadInputFile)
 btn_readfilerun.config(command = RunReadFile)
+btn_step.config(command = Step)
 
-btn_step.grid(row=0, column=0)
+btn_run.grid(row=0, column=0)
 btn_clean.grid(row=1, column=0)
 btn_output.grid(row=2, column=0)
 btn_readgraph.grid(row=3, column=0)
 btn_readfile.grid(row=4, column=0)
 btn_readfilerun.grid(row=5, column=0)
+btn_step.grid(row=6, column=0)
 
 canvas = tk.Canvas(win, bg='black', width = 10, height = 1)
 canvas.config(width = 600, height = 600)
