@@ -1,4 +1,8 @@
 #$LAN=PYTHON$
+#國立中山大學
+#碩士一年級
+#M103040045
+#林子傑
 
 import tkinter as tk
 from tkinter import messagebox
