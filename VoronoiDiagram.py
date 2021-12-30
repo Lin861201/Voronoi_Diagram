@@ -3,11 +3,9 @@
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import filedialog
-import os
 from tkinter.constants import E, N
-from scipy.spatial import ConvexHull
-import matplotlib.pyplot as plt
 import threading
+import random
 
 win = tk.Tk()
 win.config(bg='white')
@@ -74,9 +72,10 @@ class Edge():
             self.x, self.y= x, y
 
 class Point():
-    def __init__(self, x, y):
+    def __init__(self, x, y, id = None):
         self.x = x
         self.y = y
+        self.id = id
 
 class LCrossP():
     def __init__(self, x, y):
@@ -131,7 +130,7 @@ class MathEx():
 def SortPoint(p):
     return p.x*2+p.y
 
-def TwoPoint(p1,p2):
+def TwoPoint(p1,p2,color ='red'):
     p = [p1, p2]
     n = MathEx.CalcNormal(MathEx.CalcVactor(p[0], p[1]))
     x1 = n.x*600 + MathEx.GetMidPoint(p[0],p[1]).x
@@ -140,10 +139,10 @@ def TwoPoint(p1,p2):
     x2 = n.x*600 + MathEx.GetMidPoint(p[0],p[1]).x
     y2 = n.y*600 + MathEx.GetMidPoint(p[1],p[0]).y
     a = canvas.create_line(p1.x, 600-p1.y, p2.x, 600-p2.y,fill = 'pink',width = 0)
-    DrawLine(Edge(Point(x1, y1), Point(x2, y2), p1, p2))
+    DrawLine(Edge(Point(x1, y1), Point(x2, y2), p1, p2, color =color))
     return [a]
 
-def ThreePoint(p1,p2,p3):
+def ThreePoint(p1,p2,p3,color='red'):
     global EdgeList
     p = [p1, p2, p3]
     res = []
@@ -161,7 +160,7 @@ def ThreePoint(p1,p2,p3):
         y = n.y*600 + MathEx.GetMidPoint(p[i],p[i+1]).y
         a = canvas.create_line(p[i].x, 600-p[i].y, p[i+1].x, 600-p[i+1].y,fill = 'pink',width = 0)
         res.append(a)
-        DrawLine(Edge(Point(x, y), center, p[i], p[i+1]))
+        DrawLine(Edge(Point(x, y), center, p[i], p[i+1], color =color))
     return res
 
 def cleanc():
@@ -181,7 +180,7 @@ def on_button_press(event):
     y =  canvas.canvasy(event.y)
 
     DrawPoint(Point(int(x), int(600 - y)))
-    canvas.create_oval(x+5,y+5,x-5,y-5, fill = 'green')
+    # canvas.create_oval(x+5,y+5,x-5,y-5, fill = 'green')
 
 def on_move_press(event):
     pass
@@ -250,14 +249,21 @@ def RunReadFile():
         PointList = ReadData[NumData]
     elif len(ReadData[NumData]) == 2:
         PointList = ReadData[NumData]
-        TwoPoint(PointList[0], PointList[1])
+        # TwoPoint(PointList[0], PointList[1])
     elif len(ReadData[NumData]) == 3:
         PointList = ReadData[NumData]
-        ThreePoint(PointList[0], PointList[1], PointList[2])
+        # ThreePoint(PointList[0], PointList[1], PointList[2])
     else:
         PointList = ReadData[NumData]
     NumData += 1
     ShowGraph()
+
+def GetRandomColor():
+    de=("%02x"%random.randint(0,255))
+    re=("%02x"%random.randint(0,255))
+    we=("%02x"%random.randint(0,255))
+    ge="#"
+    return ge+de+re+we
 
 def CalcCross(p1, p2, p3, p4):
     x1,y1,x2,y2 = p1.x, p1.y, p2.x, p2.y
@@ -298,7 +304,9 @@ def ShowGraph():
     global PointList, EdgeList
     for i in PointList:
         a = canvas.create_oval(i.x+5,(600-i.y)+5,i.x-5,(600-i.y)-5, fill = 'pink')
+        i.id = a
     for i in EdgeList:
+        DrawLine(i)
         a = canvas.create_line(i.x.x, 600-i.x.y, i.y.x, 600-i.y.y,fill = i.color,width = 1)
         i.id = a
 
@@ -318,6 +326,8 @@ def CleanSingleEdge():
     n = []
     for i in EdgeList:
         a,b,c,d = int(i.x.x), int(i.x.y), int(i.y.x), int(i.y.y)
+        if a == c and b == d:
+            continue
         if a >= 0 and a <= 600 and b >=0 and b <= 600:
             if [a,b] in p:
                 n[p.index([a,b])] +=1
@@ -373,9 +383,8 @@ def RunHelper(PL):
         cutLine = []
         ConvexHullLine = []
         sp_np = [[i.x, i.y] for i in sp]
-        hull = ConvexHull(sp_np) #hull.vertices為逆時針
-        mymethod = Solution.outerTrees(sp_np.copy()) #逆時針
-        for vertices in range(-1,len(mymethod)-1,1): #非上下切線標示成黃色
+        mymethod = Solution.outerTrees(sp_np.copy())
+        for vertices in range(-1,len(mymethod)-1,1):
             if sp[mymethod[vertices]] in LeftPoint and sp[mymethod[vertices+1]] in LeftPoint or sp[mymethod[vertices]] in RightPoint and sp[mymethod[vertices+1]] in RightPoint:
                 a = canvas.create_line(sp[mymethod[vertices]].x, 600-sp[mymethod[vertices]].y, sp[mymethod[vertices+1]].x, 600-sp[mymethod[vertices+1]].y,fill = 'pink',width = 0)
                 # print(sp[mymethod[vertices]].x, sp[mymethod[vertices]].y, sp[mymethod[vertices+1]].x, sp[mymethod[vertices+1]].y)
@@ -444,10 +453,10 @@ def RunHelper(PL):
                     if MathEx.Distance(Point(c[cntc][1][0],c[cntc][1][1]), Point(res[0], res[1])) < 0.0001:
                         continue
                     dict.append([MathEx.Distance(Point(c[cntc][1][0],c[cntc][1][1]), Point(res[0], res[1])), res, i])
-            Dline = c[cntc][2] #要刪除的線段
-            Lline = Point(Dline.x.x, Dline.x.y) #線段的右點
-            Rline = Point(Dline.y.x, Dline.y.y) #線段的左點
-            Start = Point(c[cntc][1][0],c[cntc][1][1]) #交點
+            Dline = c[cntc][2] 
+            Lline = Point(Dline.x.x, Dline.x.y) 
+            Rline = Point(Dline.y.x, Dline.y.y) 
+            Start = Point(c[cntc][1][0],c[cntc][1][1])
             for num, i in enumerate(EdgeList):
                 if id(i) == id(Dline):
                     del EdgeList[num]
@@ -459,7 +468,7 @@ def RunHelper(PL):
                 if c[i][2].p1 in PL and c[i][2].p2 in PL:
                     cntc = i
                     break
-            if len(c) == 0:
+            if len(c) == 0 or (len(c) ==  1 and c[0][0] < 0.1):
                 if MathEx.CheckWise(CheckAngle[0], CheckAngle[1], End) == MathEx.CheckWise(CheckAngle[0], CheckAngle[1], Lline):
                     DrawLine(Edge(Start, Rline, Dline.p1, Dline.p2))
                     DrawLine(Edge(Start, End, sp[e[1]], sp[e[0]], color='red'))
@@ -485,6 +494,8 @@ def RunHelper(PL):
             elif sp[e[1]] == c[cntc][2].p2:
                 sp[e[1]] = c[cntc][2].p1
         CleanSingleEdge()
+        for i in EdgeList:
+            canvas.itemconfig(i.id,fill='red')
         return ConvexHullLine
 
 Stepcnt = 0
@@ -493,13 +504,15 @@ first = True
 def StepHelper(PL):
     global Stepcnt
     hyperplane = []
+    LeftLine = []
+    RightLine = []
     if len(PL) <= 1:
         return
     elif len(PL) == 2:
-        a = TwoPoint(PL[0], PL[1])
+        a = TwoPoint(PL[0], PL[1], color = GetRandomColor())
         return a
     elif len(PL) == 3:
-        a = ThreePoint(PL[0], PL[1], PL[2])
+        a = ThreePoint(PL[0], PL[1], PL[2], color = GetRandomColor())
         return a 
     else:
         m = len(PL) // 2
@@ -520,9 +533,8 @@ def StepHelper(PL):
         cutLine = []
         ConvexHullLine = []
         sp_np = [[i.x, i.y] for i in sp]
-        hull = ConvexHull(sp_np) #hull.vertices為逆時針
-        mymethod = Solution.outerTrees(sp_np.copy()) #逆時針
-        for vertices in range(-1,len(mymethod)-1,1): #非上下切線標示成黃色
+        mymethod = Solution.outerTrees(sp_np.copy())
+        for vertices in range(-1,len(mymethod)-1,1):
             if sp[mymethod[vertices]] in LeftPoint and sp[mymethod[vertices+1]] in LeftPoint or sp[mymethod[vertices]] in RightPoint and sp[mymethod[vertices+1]] in RightPoint:
                 a = canvas.create_line(sp[mymethod[vertices]].x, 600-sp[mymethod[vertices]].y, sp[mymethod[vertices+1]].x, 600-sp[mymethod[vertices+1]].y,fill = 'pink',width = 0)
                 # print(sp[mymethod[vertices]].x, sp[mymethod[vertices]].y, sp[mymethod[vertices+1]].x, sp[mymethod[vertices+1]].y)
@@ -564,7 +576,7 @@ def StepHelper(PL):
             if c[i][2].p1 in PL and c[i][2].p2 in PL:
                 cntc = i
                 break
-        hpid = DrawLine(Edge(Point(c[cntc][1][0], c[cntc][1][1]), Point(x2, y2), sp[e[0]], sp[e[1]], color = 'blue'))
+        hpid = DrawLine(Edge(Point(c[cntc][1][0], c[cntc][1][1]), Point(x2, y2), sp[e[0]], sp[e[1]], color = 'blue')) #??????HP
         hyperplane.append(hpid)
         CheckAngle = [Point(x2, y2),Point(c[cntc][1][0], c[cntc][1][1]),None]
         if sp[e[0]] == c[cntc][2].p1:
@@ -578,12 +590,14 @@ def StepHelper(PL):
 
 # #################################################################################################################################################
         while True:
+
             n = MathEx.CalcNormal(MathEx.CalcVactor(sp[e[1]], sp[e[0]]))
             x1 = -n.x*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).x
             y1 = -n.y*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).y
             x2 = n.x*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).x
             y2 = n.y*600 + MathEx.GetMidPoint(sp[e[0]], sp[e[1]]).y
             dict = []
+            
             for i in EdgeList:
                 if i.p1 not in PL or i.p2 not in PL:
                     continue
@@ -593,10 +607,10 @@ def StepHelper(PL):
                         continue
                     # canvas.create_oval(res[0]+5,(600-res[1])+5,res[0]-5,(600-res[1])-5, fill = 'red')
                     dict.append([MathEx.Distance(Point(c[cntc][1][0],c[cntc][1][1]), Point(res[0], res[1])), res, i])
-            Dline = c[cntc][2] #要刪除的線段
-            Lline = Point(Dline.x.x, Dline.x.y) #線段的右點
-            Rline = Point(Dline.y.x, Dline.y.y) #線段的左點
-            Start = Point(c[cntc][1][0],c[cntc][1][1]) #交點
+            Dline = c[cntc][2] 
+            Lline = Point(Dline.x.x, Dline.x.y)
+            Rline = Point(Dline.y.x, Dline.y.y) 
+            Start = Point(c[cntc][1][0],c[cntc][1][1]) 
             for num, i in enumerate(EdgeList):
                 if id(i) == id(Dline):
                     del EdgeList[num]
@@ -608,8 +622,8 @@ def StepHelper(PL):
                 if c[i][2].p1 in PL and c[i][2].p2 in PL:
                     cntc = i
                     break
-            if len(c) == 0:
-                print([CheckAngle[0].x, CheckAngle[0].y], [CheckAngle[1].x, CheckAngle[1].x], [End.x, End.y])
+
+            if len(c) == 0 or (len(c) ==  1 and c[0][0] < 0.1):
                 if MathEx.CheckWise(CheckAngle[0], CheckAngle[1], End) == MathEx.CheckWise(CheckAngle[0], CheckAngle[1], Lline):
                     DrawLine(Edge(Start, Rline, Dline.p1, Dline.p2))
                     hpid = DrawLine(Edge(Start, End, sp[e[1]], sp[e[0]], color='blue'))
@@ -621,7 +635,6 @@ def StepHelper(PL):
             hpid = DrawLine(Edge(Start, Point(c[cntc][1][0], c[cntc][1][1]), sp[e[0]], sp[e[1]], color = 'blue'))
             hyperplane.append(hpid)
             CheckAngle[2] = Point(c[cntc][1][0], c[cntc][1][1])
-            print([CheckAngle[0].x, CheckAngle[0].y], [CheckAngle[1].x, CheckAngle[1].y], [CheckAngle[2].x, CheckAngle[2].y])
             if MathEx.CheckWise(CheckAngle[0], CheckAngle[1], CheckAngle[2]) == MathEx.CheckWise(CheckAngle[0], CheckAngle[1], Lline):
                 DrawLine(Edge(Start, Rline, Dline.p1, Dline.p2))
             elif MathEx.CheckWise(CheckAngle[0], CheckAngle[1], CheckAngle[2]) == MathEx.CheckWise(CheckAngle[0], CheckAngle[1], Rline):
@@ -638,6 +651,9 @@ def StepHelper(PL):
         CleanSingleEdge()
         while Stepcnt < 3:
             pass
+        pc = GetRandomColor()
+        for i in PL:
+            canvas.itemconfig(i.id,fill=pc)
         for i in hyperplane:
             canvas.itemconfig(i,fill='red')
         return ConvexHullLine
